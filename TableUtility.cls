@@ -2,7 +2,7 @@ VERSION 1.0 CLASS
 BEGIN
   MultiUse = -1  'True
 END
-Attribute VB_Name = "ListObjectUtility"
+Attribute VB_Name = "TableUtility"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
@@ -10,93 +10,92 @@ Attribute VB_Exposed = False
 '@PredeclaredId
 Option Explicit
 
-Private Type TListObjectUtility
+Private Type TTableUtility
     GivenListobject As ListObject
     IsAllColumnInOutput As Boolean
 End Type
 
-Private this As TListObjectUtility
+Private This As TTableUtility
 
 Public Property Get IsAllColumnInOutput() As Boolean
-    IsAllColumnInOutput = this.IsAllColumnInOutput
+    IsAllColumnInOutput = This.IsAllColumnInOutput
 End Property
 
 Public Property Let IsAllColumnInOutput(ByVal RHS As Boolean)
-    this.IsAllColumnInOutput = RHS
+    This.IsAllColumnInOutput = RHS
 End Property
 
 Public Property Set GivenListobject(ByVal RHS As ListObject)
-    Set this.GivenListobject = RHS
+    Set This.GivenListobject = RHS
 End Property
 
 Public Function FirstHeaderColumnNo() As Long
     ThrowErrorIfListObjectIsNotSet "FirstHeaderColumnNo"
-    FirstHeaderColumnNo = this.GivenListobject.ListColumns(1).Range.Column
+    FirstHeaderColumnNo = This.GivenListobject.ListColumns(1).Range.Column
 End Function
 
 Public Function LastHeaderColumnNo() As Long
     ThrowErrorIfListObjectIsNotSet "LastHeaderColumnNo"
-    With this.GivenListobject
-        LastHeaderColumnNo = this.GivenListobject.ListColumns(.ListColumns.Count).Range.Column
+    With This.GivenListobject
+        LastHeaderColumnNo = This.GivenListobject.ListColumns(.ListColumns.Count).Range.Column
     End With
 End Function
 
-Public Function getDataBodyOfGivenColumns(ByVal ColumnNames As Variant) As Variant
+Public Function GetDataBodyOfGivenColumns(ByVal ColumnNamesOrIndexes As Variant) As Variant
     
     ThrowErrorIfListObjectIsNotSet "getDataBodyOfGivenColumns"
-    
-    Dim givenColumnsIndex As Collection
-    Set givenColumnsIndex = getGivenColumnsIndex(ColumnNames)
-    Dim CurrentRow As Long
-    With this.GivenListobject
-        Dim Output As Variant
-        ReDim Output(1 To .ListRows.Count, 1 To givenColumnsIndex.Count)
-        For CurrentRow = LBound(.DataBodyRange.Value, 1) To UBound(.DataBodyRange.Value, 1)
-            Dim counter As Long
-            counter = 0
-            Dim CurrentColumnIndex As Variant
-            For Each CurrentColumnIndex In givenColumnsIndex
-                counter = counter + 1
-                Output(CurrentRow, counter) = .DataBodyRange(CurrentRow, CurrentColumnIndex).Value
-            Next CurrentColumnIndex
-        Next CurrentRow
+    Dim GivenColumnsIndex As Collection
+    Set GivenColumnsIndex = GetGivenColumnsIndex(ColumnNamesOrIndexes)
+    Dim Output As Variant
+    Dim Counter As Long
+    With This.GivenListobject
+        ReDim Output(1 To .ListRows.Count, 1 To GivenColumnsIndex.Count)
+        Dim CurrentColumnIndex As Variant
+        For Each CurrentColumnIndex In GivenColumnsIndex
+            Counter = Counter + 1
+            Dim CurrentColumnValues As Variant
+            CurrentColumnValues = .ListColumns(CurrentColumnIndex).DataBodyRange.Value
+            Dim FirstColumnIndex  As Long
+            FirstColumnIndex = LBound(CurrentColumnValues, 2)
+            Dim CurrentRowIndex As Long
+            For CurrentRowIndex = LBound(CurrentColumnValues, 1) To UBound(CurrentColumnValues, 1)
+                Output(CurrentRowIndex, Counter) = CurrentColumnValues(CurrentRowIndex, FirstColumnIndex)
+            Next CurrentRowIndex
+        Next CurrentColumnIndex
     End With
-    getDataBodyOfGivenColumns = Output
+    GetDataBodyOfGivenColumns = Output
     
 End Function
 
-Private Function getGivenColumnsIndex(ByVal ColumnNames As Variant)
+Private Function GetGivenColumnsIndex(ByVal ColumnNamesOrIndexes As Variant)
     
-    Dim givenColumnsIndex As Collection
-    With this.GivenListobject
-        Set givenColumnsIndex = New Collection
+    Dim GivenColumnsIndex As Collection
+    With This.GivenListobject
+        Set GivenColumnsIndex = New Collection
         Dim CurrentColumnIndex As Long
-        If IsArray(ColumnNames) Then
-            Dim CurrentColumnName As Variant
-            For Each CurrentColumnName In ColumnNames
-                CurrentColumnIndex = .ListColumns(CurrentColumnName).Index
-                givenColumnsIndex.Add CurrentColumnIndex, CurrentColumnName
-            Next CurrentColumnName
-        Else
-            CurrentColumnIndex = .ListColumns(ColumnNames).Index
-            givenColumnsIndex.Add CurrentColumnIndex, ColumnNames
-        End If
+        Dim CurrentColumnNameOrIndex As Variant
+        For Each CurrentColumnNameOrIndex In ColumnNamesOrIndexes
+            CurrentColumnIndex = .ListColumns(CurrentColumnNameOrIndex).Index
+            GivenColumnsIndex.Add CurrentColumnIndex, CStr(CurrentColumnNameOrIndex)
+        Next CurrentColumnNameOrIndex
     End With
     
-    Set getGivenColumnsIndex = givenColumnsIndex
+    Set GetGivenColumnsIndex = GivenColumnsIndex
     
 End Function
 
-Public Function getFilteredItem(FilterInColumns As Variant, FilterByValue As Variant, _
+
+'TODO: Need to modify this one.
+Public Function GetFilteredItem(FilterInColumns As Variant, FilterByValue As Variant, _
                                 Optional OutputColumns As Variant) As Variant
     
-    ThrowErrorIfListObjectIsNotSet "getFilteredItem"
+    ThrowErrorIfListObjectIsNotSet "GetFilteredItem"
     
-    Dim givenColumnsIndex As Collection
-    Set givenColumnsIndex = getGivenColumnsIndex(FilterInColumns)
+    Dim GivenColumnsIndex As Collection
+    Set GivenColumnsIndex = GetGivenColumnsIndex(FilterInColumns)
     FilterByValue = ConvertTo1DArray(FilterByValue)
 
-    With this.GivenListobject
+    With This.GivenListobject
         
         Dim ValidRowIndexes As Collection
         Set ValidRowIndexes = New Collection
@@ -104,18 +103,18 @@ Public Function getFilteredItem(FilterInColumns As Variant, FilterByValue As Var
         
         Dim CurrentValidRow As Variant
         For Each CurrentValidRow In ValidRowIndexes
-            Dim counter As Long
-            counter = LBound(FilterByValue, 1)
+            Dim Counter As Long
+            Counter = LBound(FilterByValue, 1)
             Dim CurrentColumnIndex As Variant
-            For Each CurrentColumnIndex In givenColumnsIndex
+            For Each CurrentColumnIndex In GivenColumnsIndex
                 
                 Dim IsValidRow As Boolean
                 IsValidRow = True
                 
-                If .DataBodyRange(CurrentValidRow, CurrentColumnIndex).Value <> FilterByValue(counter) Then
+                If .DataBodyRange(CurrentValidRow, CurrentColumnIndex).Value <> FilterByValue(Counter) Then
                     IsValidRow = False
                 End If
-                counter = counter + 1
+                Counter = Counter + 1
                 
                 If Not IsValidRow Then
                     ValidRowIndexes.Remove CStr(CurrentValidRow)
@@ -129,19 +128,19 @@ Public Function getFilteredItem(FilterInColumns As Variant, FilterByValue As Var
     End With
     
     Dim OutputColumnsIndexes As Collection
-    If this.IsAllColumnInOutput Then
-        Set OutputColumnsIndexes = getGivenColumnsIndex(this.GivenListobject.HeaderRowRange.Value)
+    If This.IsAllColumnInOutput Then
+        Set OutputColumnsIndexes = GetGivenColumnsIndex(This.GivenListobject.HeaderRowRange.Value)
     Else
-        Set OutputColumnsIndexes = getGivenColumnsIndex(OutputColumns)
+        Set OutputColumnsIndexes = GetGivenColumnsIndex(OutputColumns)
     End If
     
-    getFilteredItem = GetGivenRowOfData(this.GivenListobject.DataBodyRange.Value, ValidRowIndexes, OutputColumnsIndexes)
+    GetFilteredItem = GetGivenRowOfData(This.GivenListobject.DataBodyRange.Value, ValidRowIndexes, OutputColumnsIndexes)
     
 End Function
 
 Private Sub AddAllRowInCollectionAsValid(ByRef ValidRowIndexes As Collection)
     
-    With this.GivenListobject
+    With This.GivenListobject
         'Add All Row as valid
         Dim CurrentRow As Variant
         For CurrentRow = LBound(.DataBodyRange.Value, 1) To UBound(.DataBodyRange.Value, 1)
@@ -155,6 +154,9 @@ End Sub
 Private Function GetGivenRowOfData(Data As Variant, ValidRowIndexes As Collection, OutputColumnsIndexes As Collection) As Variant
         
     Dim Output As Variant
+    If ValidRowIndexes.Count = 0 Then
+        Exit Function
+    End If
     ReDim Output(1 To ValidRowIndexes.Count, 1 To OutputColumnsIndexes.Count)
     Dim CurrentRow As Long
     Dim CurrentColumn As Long
@@ -189,10 +191,10 @@ Private Function ConvertTo1DArray(ByVal GivenData As Variant)
         
         ReDim Output(1 To NumberOfRow * NumberOfColumn)
         Dim CurrentData As Variant
-        Dim counter As Long
+        Dim Counter As Long
         For Each CurrentData In GivenData
-            counter = counter + 1
-            Output(counter) = CurrentData
+            Counter = Counter + 1
+            Output(Counter) = CurrentData
         Next CurrentData
     Else
         ReDim Output(1 To 1)
@@ -203,26 +205,44 @@ Private Function ConvertTo1DArray(ByVal GivenData As Variant)
 End Function
 
 Private Sub ThrowErrorIfListObjectIsNotSet(CallingFunctionName As String)
-    If this.GivenListobject Is Nothing Then
+    If This.GivenListobject Is Nothing Then
         Err.Raise 13, CallingFunctionName, "Set Table first"
     End If
 End Sub
 
 Public Sub DeleteAllRowExceptFirst()
-    With this.GivenListobject
-        Dim counter As Long
-        For counter = .ListRows.Count To 2 Step -1
-            .ListRows(counter).Delete
-        Next counter
+    With This.GivenListobject
+        Dim Counter As Long
+        For Counter = .ListRows.Count To 2 Step -1
+            .ListRows(Counter).Delete
+        Next Counter
     End With
 End Sub
 
-Public Function Create(GivenTable As ListObject) As ListObjectUtility
+Public Function Create(GivenTable As ListObject) As TableUtility
     
     With Me
         Set .GivenListobject = GivenTable
     End With
     Set Create = Me
+    
+End Function
+
+Private Function FindMinAndMax(ByVal GivenCollection As Collection) As Interval
+    
+    Dim Minimum As Long
+    Dim Maximum As Long
+    
+    Dim CurrentItem As Variant
+    For Each CurrentItem In GivenCollection
+        If CurrentItem < Minimum Then
+            Minimum = CurrentItem
+        End If
+        If CurrentItem > Maximum Then
+            Maximum = CurrentItem
+        End If
+    Next CurrentItem
+    Set FindMinAndMax = Interval.Create(Minimum, Maximum)
     
 End Function
 
