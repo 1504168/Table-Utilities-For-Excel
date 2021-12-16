@@ -7,9 +7,10 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
+'@Interface
+'@Folder("Predicate")
 Option Explicit
 
-Public Function IsValid(ParamArray args() As Variant) As Boolean
-    
+Public Function IsValid(RunTestOn As Variant) As Boolean
 End Function
 

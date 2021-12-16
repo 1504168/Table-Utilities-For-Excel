@@ -8,24 +8,9 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 '@PredeclaredId
-Option Explicit
+'@Folder("TableUtility.Base")
 
-Public Enum Operator
-    
-    Equal = 1
-    DOES_NOT_EQUAL = 2
-    GREATER_THAN = 3
-    GREATER_THAN_OR_EQUAL_TO = 4
-    LESS_THAN = 5
-    LESS_THAN_OR_EQUAL_TO = 6
-    CONTAINS = 7
-    DOES_NOT_CONTAINS = 8
-    STARTS_WITH = 9
-    ENDS_WITH = 10
-    IN_BETWEEN = 11
-    NOT_IN_BETWEEN = 12
-    
-End Enum
+Option Explicit
 
 Private Type TTableUtility
     GivenTable As ListObject
@@ -95,7 +80,7 @@ Private Sub ThrowErrorIfNoListRow(CallingFunctionName As String)
     End If
 End Sub
 
-Private Function GetGivenColumnsIndex(ByVal ColumnsNameOrIndex As Variant)
+Private Function GetGivenColumnsIndex(ByVal ColumnsNameOrIndex As Variant) As Variant
     
     
     With GivenTable
@@ -113,8 +98,8 @@ Private Function GetGivenColumnsIndex(ByVal ColumnsNameOrIndex As Variant)
     
 End Function
 
-'TODO: Need to modify this one.
-''We can use method of this class(GetDataBodyOfGivenColumns) of the FilterInColumns and then find the valid indexes and then use another function to get the valid rows only
+''TODO: Need to change this method input arguments. We need to change FilterByValue with collection of predicate .
+''Also need to add the Enum in this.
 Public Function GetFilteredItem(FilterInColumns As Variant, FilterByValue As Variant, _
                                 Optional OutputColumns As Variant) As Variant
     
@@ -142,6 +127,56 @@ Public Function GetFilteredItem(FilterInColumns As Variant, FilterByValue As Var
     GetFilteredItem = GetGivenRowOfData(GivenTable.DataBodyRange.Value, ValidRowIndexes, OutputColumnsIndexes)
     
 End Function
+
+
+
+
+Public Function GetFilteredItemUsingPredicate(FilterInColumns As Variant, Testers As Variant, _
+                                Optional OutputColumns As Variant) As Variant
+    
+    ThrowErrorIfListObjectIsNotSet "GetFilteredItem"
+    ThrowErrorIfNoListRow "GetFilteredItem"
+    
+    Dim FilterInData As Variant
+    FilterInData = GetDataBodyOfGivenColumns(FilterInColumns)
+    Testers = ConvertTo1DArray(Testers)
+        
+    Dim ValidRowIndexes As Collection
+    Set ValidRowIndexes = New Collection
+    AddAllRowInCollectionAsValid ValidRowIndexes
+    If ValidRowIndexes.Count = 0 Then Exit Function
+        
+    FilterOutInvalidDataUsingPredicate ValidRowIndexes, FilterInData, Testers
+            
+    Dim OutputColumnsIndexes As Collection
+    If IsAllColumnInOutput Then
+        Set OutputColumnsIndexes = GetGivenColumnsIndex(GivenTable.HeaderRowRange.Value)
+    Else
+        Set OutputColumnsIndexes = GetGivenColumnsIndex(OutputColumns)
+    End If
+    
+    GetFilteredItemUsingPredicate = GetGivenRowOfData(GivenTable.DataBodyRange.Value, ValidRowIndexes, OutputColumnsIndexes)
+    
+End Function
+
+Private Sub FilterOutInvalidDataUsingPredicate(ByRef ValidRowIndexes As Collection, FilterInData As Variant, Testers As Variant)
+    Dim CurrentValidRow As Variant
+    Dim Counter As Long
+    Dim CurrentColumnIndex As Long
+    Dim CurrentTester As Predicate
+    For Each CurrentValidRow In ValidRowIndexes
+        Counter = LBound(Testers, 1)
+        For CurrentColumnIndex = LBound(FilterInData, 2) To UBound(FilterInData, 2)
+            Set CurrentTester = Testers(Counter)
+            If Not CurrentTester.IsValid(FilterInData(CurrentValidRow, CurrentColumnIndex)) Then
+                ValidRowIndexes.Remove CStr(CurrentValidRow)
+                Exit For
+            End If
+            Counter = Counter + 1
+        Next CurrentColumnIndex
+    Next CurrentValidRow
+End Sub
+
 
 Private Sub FilterOutInvalidData(ByRef ValidRowIndexes As Collection, FilterInData As Variant, FilterByValue As Variant)
     Dim CurrentValidRow As Variant
@@ -198,31 +233,35 @@ Private Function GetGivenRowOfData(Data As Variant, ValidRowIndexes As Collectio
         
 End Function
 
-'GivenData Should be array of 1 Column or it will flatten them into 1D array.
-Private Function ConvertTo1DArray(ByVal GivenData As Variant)
+'Data Should be array of 1 Column or it will flatten them into 1D array.
+Private Function ConvertTo1DArray(ByVal Data As Variant) As Variant
     
     Dim Output As Variant
-    If IsArray(GivenData) Then
+    If IsArray(Data) Then
         Dim NumberOfRow As Long
-        NumberOfRow = UBound(GivenData, 1) - LBound(GivenData, 1) + 1
+        NumberOfRow = UBound(Data, 1) - LBound(Data, 1) + 1
         Dim NumberOfColumn As Long
         
         'Todo: Use better error handler
         On Error Resume Next
-        NumberOfColumn = UBound(GivenData, 2) - LBound(GivenData, 2) + 1
+        NumberOfColumn = UBound(Data, 2) - LBound(Data, 2) + 1
         On Error GoTo 0
         If NumberOfColumn = 0 Then NumberOfColumn = 1
         
         ReDim Output(1 To NumberOfRow * NumberOfColumn)
         Dim CurrentData As Variant
         Dim Counter As Long
-        For Each CurrentData In GivenData
+        For Each CurrentData In Data
             Counter = Counter + 1
-            Output(Counter) = CurrentData
+            If Not IsObject(CurrentData) Then
+                 Output(Counter) = CurrentData
+            Else
+                Set Output(Counter) = CurrentData
+            End If
         Next CurrentData
     Else
         ReDim Output(1 To 1)
-        Output(1) = GivenData
+        Output(1) = Data
     End If
     ConvertTo1DArray = Output
     
