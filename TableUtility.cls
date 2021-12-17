@@ -98,36 +98,32 @@ Private Function GetGivenColumnsIndex(ByVal ColumnsNameOrIndex As Variant) As Va
     
 End Function
 
-''TODO: Need to change this method input arguments. We need to change FilterByValue with collection of predicate .
-''Also need to add the Enum in this.
 Public Function GetFilteredItem(FilterInColumns As Variant, FilterByValue As Variant, _
                                 Optional OutputColumns As Variant) As Variant
     
-    ThrowErrorIfListObjectIsNotSet "GetFilteredItem"
-    ThrowErrorIfNoListRow "GetFilteredItem"
-    
-    Dim FilterInData As Variant
-    FilterInData = GetDataBodyOfGivenColumns(FilterInColumns)
-    FilterByValue = ConvertTo1DArray(FilterByValue)
-        
-    Dim ValidRowIndexes As Collection
-    Set ValidRowIndexes = New Collection
-    AddAllRowInCollectionAsValid ValidRowIndexes
-    If ValidRowIndexes.Count = 0 Then Exit Function
-        
-    FilterOutInvalidData ValidRowIndexes, FilterInData, FilterByValue
-            
-    Dim OutputColumnsIndexes As Collection
-    If IsAllColumnInOutput Then
-        Set OutputColumnsIndexes = GetGivenColumnsIndex(GivenTable.HeaderRowRange.Value)
-    Else
-        Set OutputColumnsIndexes = GetGivenColumnsIndex(OutputColumns)
-    End If
-    
-    GetFilteredItem = GetGivenRowOfData(GivenTable.DataBodyRange.Value, ValidRowIndexes, OutputColumnsIndexes)
+    Dim Testers As Variant
+    Testers = CreateDefaultTester(FilterByValue)
+    GetFilteredItem = GetFilteredItemUsingPredicate(FilterInColumns, Testers, OutputColumns)
     
 End Function
 
+Private Function CreateDefaultTester(FilterByValue As Variant) As Variant
+    
+    Dim Result() As Predicate
+    If IsArray(FilterByValue) Then
+        ReDim Result(LBound(FilterByValue) To UBound(FilterByValue))
+        Dim CurrentRowIndex As Long
+        For CurrentRowIndex = LBound(FilterByValue, 1) To UBound(FilterByValue, 1)
+           Set Result(CurrentRowIndex) = DefaultPredicate.Create(FilterByValue(CurrentRowIndex))
+        Next CurrentRowIndex
+    Else
+        ReDim Result(1 To 1)
+        Set Result(1) = DefaultPredicate.Create(FilterByValue)
+    End If
+    
+    CreateDefaultTester = Result
+    
+End Function
 
 
 
